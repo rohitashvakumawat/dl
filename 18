@@ -1,0 +1,82 @@
+---Statement 18 
+Implement a DNN using batch sizes 32 and 64 with a fixed learning rate of 0.001 on the UCI dataset. 
+Compare model loss and performance. 
+
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout
+from tensorflow.keras.optimizers import Adam
+from sklearn.datasets import load_wine
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from tensorflow.keras.utils import to_categorical
+import matplotlib.pyplot as plt
+
+# 1. Load dataset
+data = load_wine()
+X = data.data
+y = data.target
+
+# 2. Preprocess
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+y_cat = to_categorical(y)
+
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y_cat, test_size=0.2, random_state=42)
+
+# 3. Define DNN model
+def create_dnn(input_dim, num_classes):
+    model = Sequential([
+        Dense(64, activation='relu', input_shape=(input_dim,)),
+        Dropout(0.3),
+        Dense(64, activation='relu'),
+        Dropout(0.3),
+        Dense(num_classes, activation='softmax')
+    ])
+    return model
+
+# 4. Training function
+def train_dnn(batch_size):
+    model = create_dnn(X_train.shape[1], y_cat.shape[1])
+    optimizer = Adam(learning_rate=0.001)
+    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+    print(f"\nTraining with batch size = {batch_size}")
+    history = model.fit(X_train, y_train,
+                        validation_data=(X_test, y_test),
+                        epochs=30,
+                        batch_size=batch_size,
+                        verbose=0)
+    loss, acc = model.evaluate(X_test, y_test, verbose=0)
+    print(f"Test loss: {loss:.4f}, Test accuracy: {acc:.4f}")
+    return history, loss, acc
+
+# 5. Train for batch size 32 and 64
+history_32, loss_32, acc_32 = train_dnn(batch_size=32)
+history_64, loss_64, acc_64 = train_dnn(batch_size=64)
+
+# 6. Plot comparison of training and validation loss
+plt.figure(figsize=(12,5))
+
+plt.subplot(1,2,1)
+plt.plot(history_32.history['loss'], label='Train Loss (batch=32)')
+plt.plot(history_32.history['val_loss'], label='Val Loss (batch=32)')
+plt.plot(history_64.history['loss'], label='Train Loss (batch=64)')
+plt.plot(history_64.history['val_loss'], label='Val Loss (batch=64)')
+plt.title('Loss Comparison')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.legend()
+
+plt.subplot(1,2,2)
+plt.plot(history_32.history['accuracy'], label='Train Acc (batch=32)')
+plt.plot(history_32.history['val_accuracy'], label='Val Acc (batch=32)')
+plt.plot(history_64.history['accuracy'], label='Train Acc (batch=64)')
+plt.plot(history_64.history['val_accuracy'], label='Val Acc (batch=64)')
+plt.title('Accuracy Comparison')
+plt.xlabel('Epoch')
+plt.ylabel('Accuracy')
+plt.legend()
+
+plt.show()

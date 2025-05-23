@@ -1,0 +1,92 @@
+---Statement 22 
+Implement CNNs using Adam and RMSprop optimizers with a learning rate of 0.001 on Peach 
+images. Record validation loss and accuracy. 
+
+import tensorflow as tf
+import matplotlib.pyplot as plt
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Rescaling, Dropout
+
+# 1. Load the Peach dataset
+dataset_path = "peach_dataset"  # <-- Replace this with your dataset folder
+
+train_ds = tf.keras.utils.image_dataset_from_directory(
+    dataset_path,
+    validation_split=0.2,
+    subset="training",
+    seed=42,
+    image_size=(128, 128),
+    batch_size=32)
+
+val_ds = tf.keras.utils.image_dataset_from_directory(
+    dataset_path,
+    validation_split=0.2,
+    subset="validation",
+    seed=42,
+    image_size=(128, 128),
+    batch_size=32)
+
+# Normalize images
+train_ds = train_ds.map(lambda x, y: (Rescaling(1./255)(x), y))
+val_ds = val_ds.map(lambda x, y: (Rescaling(1./255)(x), y))
+
+# 2. Function to build CNN model
+def build_model():
+    model = tf.keras.Sequential([
+        Conv2D(32, (3, 3), activation='relu', input_shape=(128, 128, 3)),
+        MaxPooling2D(),
+        Dropout(0.25),
+
+        Conv2D(64, (3, 3), activation='relu'),
+        MaxPooling2D(),
+        Dropout(0.25),
+
+        Flatten(),
+        Dense(128, activation='relu'),
+        Dropout(0.5),
+        Dense(len(train_ds.class_names), activation='softmax')  # multi-class
+    ])
+    return model
+
+# 3. Train with Adam optimizer
+model_adam = build_model()
+model_adam.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+                   loss='sparse_categorical_crossentropy',
+                   metrics=['accuracy'])
+
+print("\nTraining with Adam optimizer...")
+history_adam = model_adam.fit(train_ds, validation_data=val_ds, epochs=10, verbose=0)
+loss_adam, acc_adam = model_adam.evaluate(val_ds, verbose=0)
+
+# 4. Train with RMSprop optimizer
+model_rms = build_model()
+model_rms.compile(optimizer=tf.keras.optimizers.RMSprop(learning_rate=0.001),
+                  loss='sparse_categorical_crossentropy',
+                  metrics=['accuracy'])
+
+print("\nTraining with RMSprop optimizer...")
+history_rms = model_rms.fit(train_ds, validation_data=val_ds, epochs=10, verbose=0)
+loss_rms, acc_rms = model_rms.evaluate(val_ds, verbose=0)
+
+# 5. Print Results
+print(f"\nAdam - Val Accuracy: {acc_adam:.2f}, Val Loss: {loss_adam:.4f}")
+print(f"RMSprop - Val Accuracy: {acc_rms:.2f}, Val Loss: {loss_rms:.4f}")
+
+# 6. Plot Accuracy Comparison
+plt.plot(history_adam.history['val_accuracy'], label='Adam Accuracy')
+plt.plot(history_rms.history['val_accuracy'], label='RMSprop Accuracy')
+plt.title('Validation Accuracy Comparison')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# 7. Plot Loss Comparison
+plt.plot(history_adam.history['val_loss'], label='Adam Loss')
+plt.plot(history_rms.history['val_loss'], label='RMSprop Loss')
+plt.title('Validation Loss Comparison')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
+plt.grid(True)
+plt.show()

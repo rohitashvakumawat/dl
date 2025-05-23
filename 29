@@ -1,0 +1,88 @@
+---Use transfer learning with VGG16 on the Cats and Dogs dataset, freezing the first 4 layers, and train 
+the classifier and evaluate model performance using a classification report.
+
+import tensorflow as tf
+from tensorflow.keras.applications import VGG16
+from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.layers import Dense, Flatten, Dropout
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from sklearn.metrics import classification_report
+import numpy as np
+
+# Load the Cats and Dogs dataset
+data_dir = "path_to_cats_dogs_dataset"  # Replace with your dataset path
+train_dir = f"{data_dir}/train"
+val_dir = f"{data_dir}/validation"
+
+# Preprocessing and augmentation
+datagen = ImageDataGenerator(rescale=1.0 / 255)
+
+train_data = datagen.flow_from_directory(
+    train_dir, target_size=(150, 150), batch_size=32, class_mode='binary'
+)
+val_data = datagen.flow_from_directory(
+    val_dir, target_size=(150, 150), batch_size=32, class_mode='binary'
+)
+
+# Load the VGG16 model with pretrained weights, exclude the top layers
+vgg_base = VGG16(weights='imagenet', include_top=False, input_shape=(150, 150, 3))
+
+# Freeze the first 4 layers
+for layer in vgg_base.layers[:4]:
+    layer.trainable = False
+
+# Build the classifier on top of VGG16
+model = Sequential([
+    vgg_base,
+    Flatten(),
+    Dense(128, activation='relu'),
+    Dropout(0.5),
+    Dense(1, activation='sigmoid')  # Binary classification output
+])
+
+# Compile the model
+model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),
+              loss='binary_crossentropy',
+              metrics=['accuracy'])
+
+# Train the model
+history = model.fit(
+    train_data,
+    validation_data=val_data,
+    epochs=5,  # Use more epochs for better performance
+    verbose=1
+)
+
+# Evaluate the model
+val_images, val_labels = next(val_data)
+predictions = model.predict(val_images)
+predicted_classes = (predictions > 0.5).astype(int).reshape(-1)
+
+print("Classification Report:")
+print(classification_report(val_labels, predicted_classes, target_names=['Cat', 'Dog']))
+
+# Plot training and validation curves
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(12, 5))
+
+# Plot accuracy
+plt.subplot(1, 2, 1)
+plt.plot(history.history['accuracy'], label='Training Accuracy')
+plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+plt.title('Accuracy Curve')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.legend()
+
+# Plot loss
+plt.subplot(1, 2, 2)
+plt.plot(history.history['loss'], label='Training Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.title('Loss Curve')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
+
+plt.tight_layout()
+plt.show()

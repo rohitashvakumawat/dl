@@ -1,0 +1,64 @@
+---Statement 17 
+Implement the training of a DNN using Adam and SGD optimizers with a learning rate of 0.001 on 
+the Wildfire dataset. Provide comparative plots. 
+
+import matplotlib.pyplot as plt
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Flatten, Dense
+from tensorflow.keras.optimizers import Adam, SGD
+
+# Load image data
+train_dir = 'wildfire_dataset/train'
+test_dir = 'wildfire_dataset/test'
+
+# Preprocess images
+train_gen = ImageDataGenerator(rescale=1./255)
+test_gen = ImageDataGenerator(rescale=1./255)
+
+train_data = train_gen.flow_from_directory(train_dir,
+                                           target_size=(128, 128),
+                                           batch_size=32,
+                                           class_mode='binary')
+
+test_data = test_gen.flow_from_directory(test_dir,
+                                         target_size=(128, 128),
+                                         batch_size=32,
+                                         class_mode='binary',
+                                         shuffle=False)
+
+# Simple model function
+def build_model(optimizer):
+    model = Sequential([
+        Flatten(input_shape=(128, 128, 3)),
+        Dense(64, activation='relu'),
+        Dense(32, activation='relu'),
+        Dense(1, activation='sigmoid')
+    ])
+    model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['accuracy'])
+    return model
+
+# Create and train with Adam
+model_adam = build_model(Adam(learning_rate=0.001))
+history_adam = model_adam.fit(train_data, epochs=5, validation_data=test_data)
+
+# Create and train with SGD
+model_sgd = build_model(SGD(learning_rate=0.001))
+history_sgd = model_sgd.fit(train_data, epochs=5, validation_data=test_data)
+
+# Plot function
+def plot_metrics(h1, h2, name):
+    plt.plot(h1.history[name], label='Adam - Train', color='blue')
+    plt.plot(h1.history['val_' + name], label='Adam - Test', linestyle='--', color='blue')
+    plt.plot(h2.history[name], label='SGD - Train', color='green')
+    plt.plot(h2.history['val_' + name], label='SGD - Test', linestyle='--', color='green')
+    plt.title(name.capitalize() + ' Comparison')
+    plt.xlabel('Epochs')
+    plt.ylabel(name.capitalize())
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+# Show accuracy and loss plots
+plot_metrics(history_adam, history_sgd, 'accuracy')
+plot_metrics(history_adam, history_sgd, 'loss')

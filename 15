@@ -1,0 +1,78 @@
+#Implement a DNN using RMSprop with learning rates 0.01 and 0.0001 on the Wildfire dataset. Compare training and validation performance. 
+
+import matplotlib.pyplot as plt
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Flatten, Dense
+from tensorflow.keras.optimizers import RMSprop
+
+# Load images (rescale and resize to 128x128)
+train_dir = 'wildfire_dataset/train'
+test_dir = 'wildfire_dataset/test'
+
+train_gen = ImageDataGenerator(rescale=1./255)
+test_gen = ImageDataGenerator(rescale=1./255)
+
+train_data = train_gen.flow_from_directory(train_dir,
+                                           target_size=(128, 128),
+                                           batch_size=32,
+                                           class_mode='binary')
+
+test_data = test_gen.flow_from_directory(test_dir,
+                                         target_size=(128, 128),
+                                         batch_size=32,
+                                         class_mode='binary',
+                                         shuffle=False)
+
+# Create DNN model
+def make_model(learning_rate):
+    model = Sequential([
+        Flatten(input_shape=(128, 128, 3)),
+        Dense(128, activation='relu'),
+        Dense(64, activation='relu'),
+        Dense(1, activation='sigmoid')
+    ])
+    model.compile(optimizer=RMSprop(learning_rate=learning_rate),
+                  loss='binary_crossentropy',
+                  metrics=['accuracy'])
+    return model
+
+# Train model with RMSprop (lr = 0.01)
+model_high_lr = make_model(0.01)
+history_high_lr = model_high_lr.fit(train_data, epochs=10, validation_data=test_data)
+
+# Train model with RMSprop (lr = 0.0001)
+model_low_lr = make_model(0.0001)
+history_low_lr = model_low_lr.fit(train_data, epochs=10, validation_data=test_data)
+
+# Plot training and validation accuracy/loss
+def plot_compare(hist1, hist2, label1, label2):
+    plt.figure(figsize=(14, 5))
+
+    # Accuracy
+    plt.subplot(1, 2, 1)
+    plt.plot(hist1.history['accuracy'], label=f'{label1} - Train')
+    plt.plot(hist1.history['val_accuracy'], label=f'{label1} - Val')
+    plt.plot(hist2.history['accuracy'], label=f'{label2} - Train')
+    plt.plot(hist2.history['val_accuracy'], label=f'{label2} - Val')
+    plt.title('Model Accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
+
+    # Loss
+    plt.subplot(1, 2, 2)
+    plt.plot(hist1.history['loss'], label=f'{label1} - Train')
+    plt.plot(hist1.history['val_loss'], label=f'{label1} - Val')
+    plt.plot(hist2.history['loss'], label=f'{label2} - Train')
+    plt.plot(hist2.history['val_loss'], label=f'{label2} - Val')
+    plt.title('Model Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+
+    plt.tight_layout()
+    plt.show()
+
+# Compare results
+plot_compare(history_high_lr, history_low_lr, 'LR=0.01', 'LR=0.0001')

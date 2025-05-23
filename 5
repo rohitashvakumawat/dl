@@ -1,0 +1,101 @@
+# Train a DNN on the Forest Fire dataset using RMSprop optimizer with a learning rate of 0.01. Report training and validation accuracy
+
+# Import libraries
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Flatten, Dense
+from tensorflow.keras.optimizers import RMSprop
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from sklearn.metrics import classification_report
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Paths to datasets
+train_path = "/content/forest_fire_dataset/train"
+val_path = "/content/forest_fire_dataset/validation"
+test_path = "/content/forest_fire_dataset/test"
+
+# Parameters
+img_size = (150, 150)
+batch_size = 32
+
+# Create ImageDataGenerators with rescaling
+train_datagen = ImageDataGenerator(rescale=1./255)
+val_datagen = ImageDataGenerator(rescale=1./255)
+test_datagen = ImageDataGenerator(rescale=1./255)
+
+# Load datasets
+train_generator = train_datagen.flow_from_directory(
+    train_path,
+    target_size=img_size,
+    batch_size=batch_size,
+    class_mode='binary'
+)
+
+val_generator = val_datagen.flow_from_directory(
+    val_path,
+    target_size=img_size,
+    batch_size=batch_size,
+    class_mode='binary'
+)
+
+test_generator = test_datagen.flow_from_directory(
+    test_path,
+    target_size=img_size,
+    batch_size=batch_size,
+    class_mode='binary',
+    shuffle=False  # Important for matching predictions to labels
+)
+
+# Build simple DNN model
+model = Sequential([
+    Flatten(input_shape=(150, 150, 3)),
+    Dense(128, activation='relu'),
+    Dense(64, activation='relu'),
+    Dense(1, activation='sigmoid')  # Binary output
+])
+
+# Compile model with RMSprop optimizer
+model.compile(
+    optimizer=RMSprop(learning_rate=0.01),
+    loss='binary_crossentropy',
+    metrics=['accuracy']
+)
+
+# Train the model
+history = model.fit(
+    train_generator,
+    validation_data=val_generator,
+    epochs=10
+)
+
+# Print final training and validation accuracy
+train_acc = history.history['accuracy'][-1]
+val_acc = history.history['val_accuracy'][-1]
+print(f"\nFinal Training Accuracy: {train_acc:.4f}")
+print(f"Final Validation Accuracy: {val_acc:.4f}")
+
+# Plot accuracy over epochs
+plt.plot(history.history['accuracy'], label='Training Accuracy')
+plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.title('Training vs Validation Accuracy')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+# Evaluate on test data
+test_loss, test_acc = model.evaluate(test_generator)
+print(f"\nTest Accuracy: {test_acc:.4f}")
+
+# Predict on test data
+y_pred_prob = model.predict(test_generator)
+y_pred = (y_pred_prob > 0.5).astype(int).flatten()
+
+# Get true labels
+y_true = test_generator.classes
+
+# Print classification report
+print("\nClassification Report:")
+print(classification_report(y_true, y_pred, target_names=list(test_generator.class_indices.keys())))

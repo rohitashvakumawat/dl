@@ -1,0 +1,63 @@
+# Train a DNN on the UCI dataset using batch size 32 and a learning rate of 0.0001. Evaluate training time and accuracy
+
+import time
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.utils import to_categorical
+
+# Load UCI dataset (replace with actual CSV path)
+data = pd.read_csv('/path/to/uci_dataset.csv')
+
+# Assuming last column is target, rest are features
+X = data.iloc[:, :-1].values
+y = data.iloc[:, -1].values
+
+# If classification with multiple classes, convert labels to categorical
+num_classes = len(np.unique(y))
+if num_classes > 2:
+    y = to_categorical(y)
+
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Scale features
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# Build simple DNN model
+model = Sequential([
+    Dense(64, activation='relu', input_shape=(X_train.shape[1],)),
+    Dense(32, activation='relu'),
+    Dense(num_classes if num_classes > 2 else 1, activation='softmax' if num_classes > 2 else 'sigmoid')
+])
+
+# Compile model with Adam and learning rate 0.0001
+model.compile(
+    optimizer=Adam(learning_rate=0.0001),
+    loss='categorical_crossentropy' if num_classes > 2 else 'binary_crossentropy',
+    metrics=['accuracy']
+)
+
+# Train model and record training time
+start_time = time.time()
+history = model.fit(
+    X_train, y_train,
+    batch_size=32,
+    epochs=20,
+    verbose=2,
+    validation_split=0.1
+)
+end_time = time.time()
+
+training_time = end_time - start_time
+print(f"\nTraining time: {training_time:.2f} seconds")
+
+# Evaluate accuracy on test set
+test_loss, test_acc = model.evaluate(X_test, y_test, verbose=0)
+print(f"Test accuracy: {test_acc:.4f}")
